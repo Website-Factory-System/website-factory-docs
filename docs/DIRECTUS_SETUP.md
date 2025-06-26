@@ -7,7 +7,7 @@ This guide helps you configure Directus CMS for managing content across 200+ web
 ### Option 1: Automated Setup (Recommended)
 ```bash
 # Download and run the setup script
-wget https://raw.githubusercontent.com/Website-Factory-System/infrastructure/main/setup-scripts/setup-directus.sh
+wget https://raw.githubusercontent.com/Website-Factory-System/website-factory-docs/main/setup-scripts/setup-directus.sh
 chmod +x setup-directus.sh
 sudo ./setup-directus.sh
 ```
