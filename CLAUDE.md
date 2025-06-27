@@ -2,14 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## System Overview
+## 🏗️ Project Context
+This is the **Website Factory System** - an integrated platform to automate creation, deployment, and monitoring of 200+ static websites. The system consists of multiple modules working together:
 
-Website Factory is a distributed system designed to automate the creation, deployment, and monitoring of a large portfolio (200+) of static websites. The system enables a single operator to efficiently manage hundreds of web properties by minimizing manual intervention through a central web-based Management Hub that orchestrates multiple automation modules.
+- **management-hub-api** (FastAPI): Central orchestrator and API
+- **management-hub-ui** (React/TypeScript): Dashboard interface  
+- **dns-automator** (Python): Automates Namecheap + Cloudflare DNS setup
+- **hosting-automator** (Python): Configures CloudPanel hosting + Matomo
+- **content-engine** (Python): AI-powered content generation → Directus CMS
+- **deployment-scripts** (Python): Astro build + rsync deployment
+- **analytics-aggregator** (Python): Collects Matomo + GSC data
 
-**Business Goal**: Reduce website launch time from days to minutes of active work, enabling scalable management of 200+ websites by a single operator with 98%+ success rate.
+**CRITICAL: Always update PROJECT_STATUS.md as features are completed and verified.**
 
-**Project Timeline**: development with 4 distinct phases
-**Success Metrics**: <15 minutes operator wait time per site, >98% task completion rate, ≤2 clicks per workflow
 
 ### System Architecture & Data Flow
 
@@ -48,6 +53,30 @@ Multi-tenant Directus CMS ← → Static Site Generator (Astro) → Deployment (
 - **Hosting**: Primary Vultr server with CloudPanel, Docker Compose for services
 - **Deployment**: rsync over SSH to CloudPanel document roots
 - **AI Services**: OpenAI, Gemini for content generation + Brave/Perplexity for data collection
+
+## 📝 Documentation Standards
+
+### Code Comments
+- **Why over what** - explain business logic, not syntax
+- **API integration notes** - document quirks, rate limits, auth methods
+- **TODO comments** with context: `# TODO: Add retry logic for Cloudflare rate limits`
+
+### PROJECT_STATUS.md Updates
+**IMPORTANT**: After completing any feature or major change:
+1. Update PROJECT_STATUS.md with:
+   - ✅ Completed features
+   - 🧪 Features ready for testing  
+   - 🚧 In progress
+   - ❌ Blocked/issues
+2. Include **verification steps** for each completed feature
+3. Note any **breaking changes** or **deployment requirements**
+
+## ⚠️ Common Pitfalls to Avoid
+
+- **Don't** hardcode server URLs or file paths
+- **Don't** assume external APIs will always work - implement retries
+- **Don't** forget to handle edge cases in async workflows
+- **Always** test the full user journey, not just individual components
 
 ## Database Schema (Supabase)
 
@@ -256,3 +285,31 @@ docker-compose up -d  # Management Hub API, UI, Directus, Matomo
 - API retry logic with exponential backoff for external services
 - Failure isolation (one site failure doesn't affect others)
 - User-friendly error display in Management Hub UI
+
+## 🔄 Background Tasks & Async Patterns
+
+### Task Execution
+- Use **FastAPI BackgroundTasks** for simple async operations
+- **Subprocess calls** for external scripts: `subprocess.run(['python', 'script.py'])`
+- **Status tracking** - always update database status before/after operations
+- **Graceful failure** - never let one site's failure block others
+
+## 🔐 Security Requirements
+
+### Credential Management
+- **NEVER** commit API keys, tokens, or passwords
+- Use `.env` files (gitignored) for local development
+- Store production credentials in Supabase securely
+- Load credentials via `os.getenv()` with validation
+
+### API Security
+- **Always** validate input with Pydantic schemas
+- Use **JWT tokens** for authentication
+- **Rate limiting** on public endpoints
+- **CORS** properly configured for production
+
+### External API Best Practices
+- **Retry logic** with exponential backoff for transient failures
+- **Timeout settings** for all HTTP requests
+- **API key rotation** support in credential management
+- **Scoped permissions** - minimum required access for each service

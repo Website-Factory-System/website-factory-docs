@@ -157,6 +157,11 @@ Alex is a portfolio operator who wants to build and manage a large network of ni
 *   **Google Search Console API & Site Verification API**: To verify sites and fetch search data.
 *   **SSH/rsync**: For file deployment to the hosting server.
 
+### 8.1.1. Deployment Architecture
+
+*   **Railway Cloud (Control Plane)**: Hosts Management Hub API/UI, all automation scripts (DNS, Hosting, Content, Deployment, Analytics), and Matomo analytics. These run as separate Railway services triggered by the API.
+*   **Vultr Server (Data Plane)**: Dedicated to serving websites - runs CloudPanel for web hosting, Directus CMS for content management, and Astro for static site generation. Hosts the actual 200+ static websites.
+
 ### 8.2. Data storage & privacy
 
 *   All sensitive credentials (API keys, tokens) must be stored securely in Supabase and accessed via environment variables in the application modules, never hardcoded.

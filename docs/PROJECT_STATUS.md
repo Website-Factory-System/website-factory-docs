@@ -1,6 +1,6 @@
 # Website Factory - Overall Project Status
 
-**Last Updated**: June 26, 2025
+**Last Updated**: December 27, 2024
 
 ## 🎯 **Project Overview**
 Website Factory is a distributed system for automating the creation, deployment, and monitoring of 200+ static websites. Single operator can manage hundreds of web properties with 98%+ success rate and <15 minutes deployment time.
@@ -9,8 +9,8 @@ Website Factory is a distributed system for automating the creation, deployment,
 
 | Module | Status | Progress | Next Action | Dependencies |
 |--------|--------|----------|-------------|--------------|
-| **Management Hub API** | ✅ LIVE | 95% | Connect to real automation scripts | None |
-| **Management Hub UI** | ✅ LIVE | 85% | Add bulk import, analytics page | Management Hub API |
+| **Management Hub API** | ✅ LIVE | 98% | Add credential encryption | None |
+| **Management Hub UI** | ✅ LIVE | 90% | Add analytics page | Management Hub API |
 | **DNS Automator** | 📋 PLANNED | 0% | Start development | Management Hub API |
 | **Hosting Automator** | 📋 PLANNED | 0% | Start development | DNS Automator |
 | **Content Engine** | 📋 PLANNED | 0% | Define requirements | Management Hub API |
@@ -35,11 +35,11 @@ Website Factory is a distributed system for automating the creation, deployment,
   - github.com/Website-Factory-System/management-hub-api
   - github.com/Website-Factory-System/management-hub-ui
 
-### ❌ **Pending Infrastructure:**
-- **Vultr Server**: Not yet provisioned
-- **CloudPanel**: Not installed
-- **Directus CMS**: Not deployed
-- **Matomo Analytics**: Not deployed
+### 🚧 **Infrastructure Status:**
+- **Vultr Server**: ✅ Provisioned
+- **CloudPanel**: ✅ Installed
+- **Directus CMS**: ✅ Deployed via Docker
+- **Matomo Analytics**: ❌ Not deployed yet
 
 ## 📋 **Development Progress Summary**
 
@@ -57,19 +57,33 @@ Website Factory is a distributed system for automating the creation, deployment,
 - ✅ Stats cards, data tables, quick actions
 - ✅ Search, filtering, tabs for different views
 - ✅ Professional sidebar navigation
-- 📋 TODO: Bulk import, Edit site, Analytics page
+- ✅ Settings page with credential management
+- ✅ Bulk CSV import for Cloudflare accounts
+- 📋 TODO: Edit site, Analytics page
 
-### **Phase 3: Infrastructure Setup** 🚧 IN PROGRESS
-- 📋 Vultr server provisioning
-- 📋 CloudPanel installation
-- 📋 Directus CMS deployment
-- 📋 Matomo analytics setup
+### **Phase 3: Credentials Management** ✅ COMPLETED (December 27, 2024)
+- ✅ Database schema for secure credential storage
+- ✅ API endpoints for all credential types
+- ✅ Settings page UI with forms for:
+  - Multiple server management
+  - Domain registrar credentials (Namecheap, Spaceship)
+  - Infrastructure services (Matomo, CloudPanel, Directus)
+  - Bulk CSV import for Cloudflare accounts
+- ✅ Support for multiple hosting servers
+- 📋 TODO: Implement credential encryption at rest
 
-### **Phase 4: Automation Modules** 📋 PLANNED
+### **Phase 4: Infrastructure Setup** 🚧 IN PROGRESS
+- ✅ Vultr server provisioned
+- ✅ CloudPanel installed
+- ✅ Directus CMS deployed
+- ❌ Matomo analytics not deployed
+- ❌ Full configuration not complete
+
+### **Phase 5: Automation Modules** 📋 PLANNED
 - All modules have documentation but no implementation
 - Simulated workflows in API ready for replacement
 
-## 🎯 **Current State - June 26, 2025**
+## 🎯 **Current State - December 27, 2024**
 
 ### **What's Working:**
 1. **Complete Authentication Flow**
@@ -97,12 +111,22 @@ Website Factory is a distributed system for automating the creation, deployment,
    - Loading states and error handling
    - Toast notifications
 
+5. **Credentials Management** (NEW!)
+   - Settings page with tabbed interface
+   - Server configuration management
+   - Domain registrar API credentials (Namecheap, Spaceship)
+   - Infrastructure service credentials (Matomo, CloudPanel, Directus)
+   - Bulk CSV import for Cloudflare accounts
+   - Support for multiple hosting servers
+   - ✅ Spaceship API secret support added (December 27, 2024)
+   - ✅ Password change functionality added (December 27, 2024)
+
 ### **What's Not Working:**
-1. **No Real Infrastructure**
-   - No Vultr server
-   - No CloudPanel
-   - No Directus CMS
-   - No Matomo
+1. **Infrastructure Partially Complete**
+   - ✅ Basic server setup done
+   - ❌ Full infrastructure configuration pending
+   - ❌ Matomo not deployed
+   - ❌ Integration between services not configured
 
 2. **No Automation Modules**
    - DNS Automator not built
@@ -118,51 +142,60 @@ Website Factory is a distributed system for automating the creation, deployment,
 
 ## 🚀 **Immediate Next Steps for New Developer**
 
-### **Option A: Complete Infrastructure Setup (Recommended)**
-1. **Provision Vultr Server**
-   - Ubuntu 22.04 LTS
-   - At least 4GB RAM for all services
-   - Configure firewall
+### **Architecture Decision (December 2024)**
+We're using a **Hybrid Cloud Architecture**:
+- **Railway**: Management Hub (API/UI), Automation Scripts, Matomo Analytics
+- **Vultr**: CloudPanel, Directus CMS, Astro Builder, Website Hosting (200+ static sites)
 
-2. **Install CloudPanel**
-   ```bash
-   curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | sudo bash
-   ```
+**Rationale**: Separation of control plane (automation) from data plane (websites). This ensures automation failures don't affect live websites, allows independent scaling, and keeps API secrets in Railway environment.
 
-3. **Deploy Directus CMS**
-   - Use Docker Compose
-   - Configure for multi-tenant setup
-   - Set up webhook for deployments
+### **Immediate Next Steps (With Credentials Management Ready)**
 
-4. **Deploy Matomo Analytics**
-   - Install via CloudPanel or Docker
-   - Configure API access
-   - Set up tracking codes
-
-### **Option B: Start Building Automation Modules**
+### **Option A: Build Automation Modules (Now Recommended)**
+**Prerequisites**: Add your credentials via the Settings page first!
 1. **DNS Automator** (First Priority)
    - Read `/dns-automator/Plan.md`
    - Implement Namecheap nameserver update
    - Implement Cloudflare zone creation
    - Replace simulated workflow in API
 
-2. **Test with UI**
-   - Add a new site
-   - Watch DNS setup happen in real-time
-   - Debug using UI feedback
+2. **Hosting Automator** (Second Priority)
+   - Read `/hosting-automator/Plan.md`
+   - Implement CloudPanel site creation
+   - Implement SSL provisioning
+   - Deploy as Railway service
+
+3. **Deploy Matomo on Railway**
+   - Create new Railway service
+   - Use Matomo Docker image
+   - Configure for multi-site tracking
+
+### **Option B: Complete UI Features**
+1. **Analytics Page**
+   - Implement analytics dashboard
+   - Connect to Matomo API (once deployed)
+   - Add date range filtering
+
+2. **Bulk Import**
+   - Add CSV upload functionality
+   - Batch site creation
+   - Progress tracking
 
 ## 🔗 **How Everything Connects**
 
 ```
 User → Management Hub UI → Management Hub API → Automation Scripts
+           (Railway)         (Railway)            (Railway)
                 ↓                    ↓                    ↓
-           Railway Cloud       Supabase DB         Python Scripts
-                                                         ↓
-                                                 External APIs:
-                                                 - Namecheap
-                                                 - Cloudflare
-                                                 - CloudPanel
-                                                 - OpenAI/Gemini
+           Railway Cloud       Supabase DB      External APIs:
+                                                - Namecheap
+                                                - Cloudflare
+                                                - OpenAI/Gemini
+                                                       ↓
+                                              Vultr Server:
+                                              - Directus CMS
+                                              - CloudPanel
+                                              - Static Sites
 ```
 
 ## 📁 **Project Structure**
@@ -211,6 +244,7 @@ WebsiteFactory/
 2. **Environment Variables**:
    - API needs: `SUPABASE_URL`, `SUPABASE_KEY`, `JWT_SECRET_KEY`
    - UI needs: `VITE_API_BASE_URL`
+   - Directus needs: API token (to be generated)
 
 3. **Testing Workflows**:
    - Add a site through UI
@@ -221,6 +255,20 @@ WebsiteFactory/
    - Use Supabase dashboard
    - All credentials in respective `.env` files
 
+5. **Directus Access**:
+   - URL: http://YOUR-VULTR-IP:8055
+   - Admin: admin@websitefactory.com
+   - Create collections as per DIRECTUS_SETUP.md
+
 ---
 
-**🎯 Summary**: The foundation is rock solid. UI and API are production-ready. Next developer should either set up infrastructure (Directus, CloudPanel) or start building automation modules. The simulated workflows make it easy to test - just replace the TODOs with real implementations!
+**🎯 Summary**: Foundation is rock solid. UI and API are production-ready with NEW credentials management system! Infrastructure includes Vultr server running CloudPanel and Directus. 
+
+**NEW (December 27, 2024)**: Complete credentials management system added:
+- ✅ Settings page with tabbed interface for all credential types
+- ✅ Support for multiple servers, domain registrars, and infrastructure services
+- ✅ Bulk CSV import for Cloudflare accounts
+- ✅ Secure storage in Supabase database
+- 📋 TODO: Add encryption at rest for sensitive credentials
+
+Next step is to build the automation modules (DNS, Hosting, Content, etc.) and deploy them on Railway. The simulated workflows in the API make it easy to test - just replace the TODOs with real implementations! All credentials can now be managed through the UI instead of hardcoding.
