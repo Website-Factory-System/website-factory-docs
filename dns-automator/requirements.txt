@@ -1,0 +1,9 @@
+supabase==2.3.0
+python-dotenv==1.0.0
+requests==2.31.0
+cloudflare==2.19.2
+pydantic==2.5.2
+pydantic-settings==2.1.0
+tenacity==8.2.3
+fastapi==0.104.1
+uvicorn==0.24.0

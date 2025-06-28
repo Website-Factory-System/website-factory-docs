@@ -11,7 +11,7 @@ Website Factory is a distributed system for automating the creation, deployment,
 |--------|--------|----------|-------------|--------------|
 | **Management Hub API** | ✅ LIVE | 98% | Add credential encryption | None |
 | **Management Hub UI** | ✅ LIVE | 90% | Add analytics page | Management Hub API |
-| **DNS Automator** | 📋 PLANNED | 0% | Start development | Management Hub API |
+| **DNS Automator** | ✅ COMPLETE | 100% | Deployed & Integrated | Management Hub API |
 | **Hosting Automator** | 📋 PLANNED | 0% | Start development | DNS Automator |
 | **Content Engine** | 📋 PLANNED | 0% | Define requirements | Management Hub API |
 | **Deployment Scripts** | 📋 PLANNED | 0% | Start development | Content Engine |
@@ -31,9 +31,14 @@ Website Factory is a distributed system for automating the creation, deployment,
 - **API**: https://management-hub-api-production.up.railway.app
 - **UI**: https://management-hub-ui-production.up.railway.app
 - **Database**: dhmshimcnbsirvirvttx.supabase.co
-- **Repositories**: 
+- **Repositories** (GitHub Organization: Website-Factory-System): 
   - github.com/Website-Factory-System/management-hub-api
   - github.com/Website-Factory-System/management-hub-ui
+  - github.com/Website-Factory-System/dns-automator
+  - github.com/Website-Factory-System/hosting-automator
+  - github.com/Website-Factory-System/content-engine
+  - github.com/Website-Factory-System/deployment-scripts
+  - github.com/Website-Factory-System/analytics-aggregator
 
 ### 🚧 **Infrastructure Status:**
 - **Vultr Server**: ✅ Provisioned
@@ -79,11 +84,16 @@ Website Factory is a distributed system for automating the creation, deployment,
 - ❌ Matomo analytics not deployed
 - ❌ Full configuration not complete
 
-### **Phase 5: Automation Modules** 📋 PLANNED
-- All modules have documentation but no implementation
+### **Phase 5: Automation Modules** 🚧 IN PROGRESS
+- ✅ DNS Automator complete (December 28, 2024)
+  - Full implementation with Namecheap & Spaceship support
+  - Cloudflare zone and record management
+  - Database-driven credential management
+  - Ready for Railway deployment
+- 📋 Other modules have documentation but no implementation
 - Simulated workflows in API ready for replacement
 
-## 🎯 **Current State - December 27, 2024**
+## 🎯 **Current State - December 28, 2024**
 
 ### **What's Working:**
 1. **Complete Authentication Flow**
@@ -149,26 +159,37 @@ We're using a **Hybrid Cloud Architecture**:
 
 **Rationale**: Separation of control plane (automation) from data plane (websites). This ensures automation failures don't affect live websites, allows independent scaling, and keeps API secrets in Railway environment.
 
-### **Immediate Next Steps (With Credentials Management Ready)**
+### **Immediate Next Steps for Next Developer**
 
-### **Option A: Build Automation Modules (Now Recommended)**
-**Prerequisites**: Add your credentials via the Settings page first!
-1. **DNS Automator** (First Priority)
-   - Read `/dns-automator/Plan.md`
-   - Implement Namecheap nameserver update
-   - Implement Cloudflare zone creation
-   - Replace simulated workflow in API
+### **CRITICAL SECURITY ACTION**
+1. **Rotate Compromised Credentials** (IMMEDIATE)
+   - Change Supabase service key in Supabase dashboard
+   - Generate new JWT_SECRET_KEY for Management Hub API
+   - Update Railway environment variables with new values
 
-2. **Hosting Automator** (Second Priority)
+### **Next Automation Module: Hosting Automator**
+1. **Setup** (Follow DNS Automator pattern)
+   - Clone DNS Automator structure
    - Read `/hosting-automator/Plan.md`
-   - Implement CloudPanel site creation
-   - Implement SSL provisioning
-   - Deploy as Railway service
+   - Implement CloudPanel API integration
+   - SSL certificate provisioning
+   - Matomo site creation
 
-3. **Deploy Matomo on Railway**
-   - Create new Railway service
-   - Use Matomo Docker image
-   - Configure for multi-site tracking
+2. **Deploy to Railway**
+   - Push to GitHub repo
+   - Deploy as Railway service
+   - Add `HOSTING_AUTOMATOR_URL=http://hosting-automator.railway.internal` to Management Hub API
+
+3. **Integration Pattern**
+   ```python
+   # Receives POST /process with:
+   {
+     "supabase_url": "...",
+     "supabase_service_key": "...",
+     "site_id": "..."
+   }
+   # Fetches everything else from database
+   ```
 
 ### **Option B: Complete UI Features**
 1. **Analytics Page**
@@ -271,4 +292,31 @@ WebsiteFactory/
 - ✅ Secure storage in Supabase database
 - 📋 TODO: Add encryption at rest for sensitive credentials
 
-Next step is to build the automation modules (DNS, Hosting, Content, etc.) and deploy them on Railway. The simulated workflows in the API make it easy to test - just replace the TODOs with real implementations! All credentials can now be managed through the UI instead of hardcoding.
+**NEW (December 28, 2024)**: Major progress on automation:
+
+### DNS Automator - COMPLETE & INTEGRATED ✅
+- ✅ Full implementation with both Namecheap and Spaceship registrar support
+- ✅ Fixed workflow: Creates Cloudflare zone FIRST, gets assigned nameservers, then updates registrar
+- ✅ Database-driven credential loading (no hardcoded credentials)
+- ✅ Deployed as FastAPI service on Railway with private networking
+- ✅ Integrated with Management Hub API via internal URL
+- ✅ Comprehensive error handling and retry logic
+- ✅ No environment variables needed (receives credentials from Management Hub)
+
+### Management Hub Updates:
+- ✅ Added Cloudflare accounts management in Settings page (view & delete)
+- ✅ Added DELETE endpoint for Cloudflare accounts
+- ✅ DNS Automator integration via Railway private networking
+- ✅ Updated workflow service to call real DNS Automator instead of simulation
+
+### Critical Security Fix:
+- ⚠️ Added HANDOFF.md to .gitignore (contained sensitive keys)
+- ⚠️ You must rotate all Supabase keys and JWT secret immediately!
+
+### Integration Architecture:
+```
+Management Hub API → http://dns-automator.railway.internal → DNS Automator
+     (Railway)              (Private Network)                  (Railway)
+```
+
+Next step is to build Hosting Automator following the same pattern as DNS Automator!
