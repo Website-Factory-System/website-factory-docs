@@ -14,6 +14,7 @@ This is the **Website Factory System** - an integrated platform to automate crea
 - **analytics-aggregator** (Python): Collects Matomo + GSC data
 
 **CRITICAL: Always update PROJECT_STATUS.md as features are completed and verified.**
+**CRITICAL: Always try to use existing documentation instead of creating new docs. You better edit the existing docs and keep them up to date than create unlimited new docs.**
 
 
 ### System Architecture & Data Flow
@@ -50,11 +51,18 @@ Multi-tenant Directus CMS ← → Static Site Generator (Astro) → Deployment (
 - **Static Site Generator**: Astro - builds optimized static sites from Directus content
 - **Analytics**: Self-hosted Matomo + Google Search Console API integration
 - **DNS/CDN**: Cloudflare (~25 accounts for distribution) + Namecheap domain management
-- **Hosting**: Primary Vultr server with CloudPanel, Docker Compose for services
+- **Hosting**: Primary Vultr server with CloudPanel (NO API - uses CLI commands only), Docker Compose for services
+- **CloudPanel CLI**: Site creation via `clpctl site:add:static`, SSL via `clpctl lets-encrypt:install:certificate`
 - **Deployment**: rsync over SSH to CloudPanel document roots
 - **AI Services**: OpenAI, Gemini for content generation + Brave/Perplexity for data collection
 
 ## 📝 Documentation Standards
+
+### Documentation Hierarchy
+**IMPORTANT**: When working on the project, follow this documentation priority:
+1. **System-level docs** (`/docs/`): SYSTEM_PRD.md, SYSTEM_TDD.md, SYSTEM_Plan.md - High-level architecture and overall project understanding
+2. **Module-level docs** (`/<module-name>/`): PRD.md, TDD.md, Plan.md - Detailed implementation specifics for each module
+3. Always check module documentation for implementation details before starting work on any module
 
 ### Code Comments
 - **Why over what** - explain business logic, not syntax

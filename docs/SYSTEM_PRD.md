@@ -65,7 +65,7 @@ Once content is reviewed and approved within the CMS, a final deployment command
     *   Ability to assign each new site to a pre-configured Cloudflare account.
 *   **Automated Infrastructure Setup** (Priority: High)
     *   Automate DNS configuration by updating nameservers at the registrar (Namecheap) and creating records in the assigned Cloudflare account.
-    *   Automate hosting environment creation on a CloudPanel server, including SSL certificate provisioning.
+    *   Automate hosting environment creation on a CloudPanel server via its Command-Line Interface (CLI), including SSL certificate provisioning.
     *   Automate tracking site creation in a self-hosted Matomo analytics instance.
 *   **Asynchronous Content & Deployment Workflows** (Priority: High)
     *   Trigger an AI-powered content generation process per site with a single button click.
@@ -149,7 +149,7 @@ Alex is a portfolio operator who wants to build and manage a large network of ni
 *   **Supabase**: Central database for configuration, credentials, and site status.
 *   **Namecheap API**: To manage domain nameservers.
 *   **Cloudflare API**: To manage DNS zones and records across multiple accounts.
-*   **CloudPanel API**: For initial site setup (if available/used).
+*   **CloudPanel CLI**: To manage hosting environments on the server via SSH.
 *   **Directus API**: To programmatically write (content engine) and read (Astro build) content.
 *   **AI APIs (OpenAI, Gemini, etc.)**: For text and image generation.
 *   **Data Source APIs (Brave, Perplexity, etc.)**: For data collection.
@@ -180,6 +180,7 @@ Alex is a portfolio operator who wants to build and manage a large network of ni
 *   **API Changes**: Heavy reliance on third-party APIs means changes or deprecations by those services can break parts of the workflow.
 *   **AI Content Quality**: The quality and uniqueness of the AI-generated content are critical for the websites' success and require significant prompt engineering and a robust data collection strategy.
 *   **Error Handling Complexity**: Handling failures across a distributed, multi-step automated workflow is complex. The system needs robust logging and status tracking.
+*   **CLI Automation Fragility**: Automating via a CLI is more brittle than a stable API. Updates to CloudPanel could change command syntax and break the `hosting-automator` script.
 *   **Initial Setup**: The initial manual setup of all accounts and credentials is a significant upfront effort.
 
 ## 9. Milestones & sequencing

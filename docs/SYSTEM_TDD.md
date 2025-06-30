@@ -9,7 +9,7 @@ The Website Factory is a distributed system composed of several independent modu
 *   **Central Database & Config Store**: A Supabase project will serve as the primary PostgreSQL database. It will store all configuration data (API keys, tokens), the state of each managed site (`sites` table), and the aggregated analytics data. It is the single source of truth for the system's state.
 *   **Headless CMS**: A single, self-hosted Directus instance will manage content for all 200+ websites in a multi-tenant fashion, with content relationally linked to a `sites` collection.
 *   **Automation Scripts**: A set of independent Python scripts (`dns-automator`, `hosting-automator`, etc.) will reside in their respective folders on the server's filesystem. They are stateless and executed on-demand.
-*   **Orchestration**: The **Management Hub API** (FastAPI) acts as the central orchestrator. It receives requests from the UI and triggers the appropriate Python automation scripts as asynchronous background tasks (using FastAPI BackgroundTasks or Celery).
+*   **Orchestration**: The **Management Hub API** (FastAPI) acts as the central orchestrator. It receives requests from the UI and triggers the appropriate Python automation scripts as asynchronous background tasks. **For CloudPanel management, the `hosting-automator` script will establish a direct SSH connection to the Vultr server to execute `clpctl` CLI commands.**
 *   **Frontend**: The **Management Hub UI** (React) is a single-page application that communicates exclusively with the Management Hub API.
 *   **Static Site Generator**: **Astro** is used as the build tool. The deployment script will execute the Astro build command to generate static files.
 *   **Deployment Mechanism**: The `deployment-scripts` module will use **`rsync` over SSH** to transfer the built static files from a temporary build location to the final document root on the CloudPanel server.
@@ -26,6 +26,7 @@ graph TD
         API(Management Hub API - FastAPI)
         CMS(Directus CMS - Node.js)
         Analytics(Matomo - PHP)
+        CP[CloudPanel Instance]
     end
 
     subgraph "On-Demand Scripts (Python)"
@@ -53,7 +54,9 @@ graph TD
 
     API -- R/W State & Config --> DB
     DNS -- R/W --> DB; DNS -- Uses --> NC; DNS -- Uses --> CF
-    Host -- R/W --> DB; Host -- Configures --> Analytics
+    Host -- R/W --> DB
+    Host -- Manages via SSH/CLI --> CP
+    Host -- Configures via API --> Analytics
     Content -- R/W --> DB; Content -- Uses --> AI; Content -- Writes Content --> CMS
     Deploy -- Reads Content --> CMS; Deploy -- R/W --> DB
     Aggregator -- Reads --> Analytics; Aggregator -- Reads --> GSC; Aggregator -- R/W --> DB
@@ -124,8 +127,10 @@ Stores aggregated daily performance data for the analytics dashboard.
 
 ## 3. Security measures
 
-*   **Credential Management**: All external API keys, tokens, and secrets will be stored in the Supabase database. Application modules will load these credentials at runtime from environment variables (`.env` files), which are excluded from Git version control via `.gitignore`. The `.env` files on the production server will be managed securely with restricted permissions.
+*   **Credential Management**: All external API keys, tokens, SSH key paths, and secrets will be stored in the Supabase database. Application modules will load these credentials at runtime from environment variables (`.env` files), which are excluded from Git version control via `.gitignore`. The `.env` files on the production server will be managed securely with restricted permissions.
 *   **Network Security**: The Vultr server will be protected by a firewall, allowing traffic only on necessary ports (e.g., 22 for SSH, 80/443 for HTTP/S). All web services (Management Hub, Directus, Matomo) will be configured to run over HTTPS with valid SSL certificates. SSH access will be restricted to key-based authentication only.
+*   **SSH Security**: SSH access to the Vultr server will be restricted to key-based authentication only. The SSH key used for automation will be stored securely with strict file permissions (`400`) and its path loaded from an environment variable. Consider creating a dedicated user with limited, passwordless `sudo` privileges scoped only to the `clpctl` command.
+*   **Command Injection Prevention**: Any variable (e.g., domain name, username) passed into a shell command via Python's `subprocess` or `paramiko` **must be strictly sanitized and validated** to prevent command injection vulnerabilities.
 *   **API Security**: The Management Hub API will require authentication for all endpoints. Sensitive operations will be restricted to the authenticated operator role. API endpoints will validate all incoming data (using Pydantic) to prevent injection attacks.
 *   **Application Security**: All software (OS, Python packages, Node.js packages, Directus, Matomo) will be kept up-to-date with the latest security patches. Dependencies will be scanned for known vulnerabilities.
 *   **Data Privacy**: As the system handles sensitive API keys, database access will be restricted. The `service_role` key for Supabase will be used only by trusted backend services and never exposed to the frontend.
