@@ -17,13 +17,11 @@ http://service-name.railway.internal:PORT
 Add these environment variables in Railway:
 
 ```bash
-# DNS Automator connection
-DNS_AUTOMATOR_URL=http://dns-automator.railway.internal
-DNS_AUTOMATOR_PORT=8000
+# DNS Automator connection (port 8000 is the default in our services)
+DNS_AUTOMATOR_URL=http://dns-automator.railway.internal:8000
 
 # Hosting Automator connection  
-HOSTING_AUTOMATOR_URL=http://hosting-automator.railway.internal
-HOSTING_AUTOMATOR_PORT=8000
+HOSTING_AUTOMATOR_URL=http://hosting-automator.railway.internal:8000
 
 # Existing variables
 SUPABASE_URL=your-supabase-url
@@ -33,14 +31,16 @@ JWT_SECRET_KEY=your-jwt-secret
 
 #### For DNS Automator Service
 ```bash
-PORT=8000
-# No other env vars needed - receives credentials from Management Hub
+# No environment variables needed - the service defaults to port 8000
+# If you want to use a different port, set:
+# PORT=8080
 ```
 
 #### For Hosting Automator Service
 ```bash
-PORT=8000  
-# No other env vars needed - receives credentials from Management Hub
+# No environment variables needed - the service defaults to port 8000
+# If you want to use a different port, set:
+# PORT=8080
 ```
 
 ## Common Issues and Solutions
