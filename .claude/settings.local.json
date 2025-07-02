@@ -10,7 +10,9 @@
       "Bash(npm install:*)",
       "Bash(npx tailwindcss init:*)",
       "Bash(npx:*)",
-      "WebFetch(domain:www.cloudpanel.io)"
+      "WebFetch(domain:www.cloudpanel.io)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

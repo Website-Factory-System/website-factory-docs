@@ -15,7 +15,7 @@ This is the **Website Factory System** - an integrated platform to automate crea
 
 **CRITICAL: Always update PROJECT_STATUS.md as features are completed and verified.**
 **CRITICAL: Always try to use existing documentation instead of creating new docs. You better edit the existing docs and keep them up to date than create unlimited new docs.**
-
+**CRITICAL: Try not to hardcode any values that should be relative**
 
 ### System Architecture & Data Flow
 

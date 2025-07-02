@@ -1,6 +1,6 @@
 # Website Factory - Overall Project Status
 
-**Last Updated**: June 28, 2025
+**Last Updated**: December 28, 2024
 
 ## 🎯 **Project Overview**
 Website Factory is a distributed system for automating the creation, deployment, and monitoring of 200+ static websites. Single operator can manage hundreds of web properties with 98%+ success rate and <15 minutes deployment time.
@@ -93,6 +93,16 @@ Website Factory is a distributed system for automating the creation, deployment,
 - 📋 Other modules have documentation but no implementation
 - Simulated workflows in API ready for replacement
 
+### **Critical Issue: Workflows Not Triggering** 🚨
+- **Problem**: Background tasks added via FastAPI's BackgroundTasks are not executing
+- **Symptoms**: Sites remain in "pending" status after creation
+- **Root Cause**: Missing environment variables and/or background task execution issues
+- **Required Action**: 
+  1. Add `DNS_AUTOMATOR_URL=http://dns-automator.railway.internal` to Management Hub API env vars
+  2. Add `HOSTING_AUTOMATOR_URL=http://hosting-automator.railway.internal` to Management Hub API env vars
+  3. Monitor Railway logs to verify background task execution
+- **Documentation**: See `/docs/STATUS_PAGE_DOCUMENTATION.md` for debugging steps
+
 ## 🎯 **Current State - June 28, 2025**
 
 ### **What's Working:**
@@ -131,6 +141,15 @@ Website Factory is a distributed system for automating the creation, deployment,
    - Support for multiple hosting servers
    - ✅ Spaceship API secret support added (June 27, 2025)
    - ✅ Password change functionality added (June 27, 2025)
+
+6. **Status Page & Workflow Monitoring** (NEW - December 28, 2024!)
+   - Real-time workflow status monitoring
+   - Processing queue with elapsed time tracking
+   - Detailed phase and step breakdowns
+   - Recently completed sites section
+   - Error message display and retry capabilities
+   - Auto-refresh for active workflows (2-second intervals)
+   - Expandable details for each workflow phase
 
 ### **What's Not Working:**
 1. **Infrastructure Partially Complete**
