@@ -87,16 +87,29 @@ class DNSAutomator:
         
         try:
             # Step 1: Fetch Cloudflare credentials
-            cf_account = self.supabase.fetch_cloudflare_account(site["cloudflare_account_id"])
+            cf_account_id = site["cloudflare_account_id"]
+            logger.info(f"Fetching Cloudflare account: {cf_account_id}")
+            cf_account = self.supabase.fetch_cloudflare_account(cf_account_id)
             if not cf_account:
-                error_msg = f"Cloudflare account not found: {site['cloudflare_account_id']}"
+                error_msg = f"Cloudflare account not found: {cf_account_id}"
                 logger.error(error_msg)
                 self.supabase.update_site_status(site_id, "failed", error_msg)
                 return False
             
+            logger.info(f"Found Cloudflare account: {cf_account['email']} ({cf_account['account_nickname']})")
+            
             # Step 2: Create Cloudflare zone FIRST to get nameservers
             try:
-                cf_client = CloudflareClient(cf_account["api_token"])
+                api_token = cf_account["api_token"]
+                account_id = cf_account.get("cloudflare_account_id")
+                logger.info(f"Using Cloudflare API token: {api_token[:10]}...{api_token[-4:]} (length: {len(api_token)})")
+                logger.info(f"Using Cloudflare Account ID: {account_id[:8] if account_id else 'NOT SET'}...")
+                
+                if not account_id:
+                    logger.warning("CRITICAL: Cloudflare Account ID not set in database! This will likely cause 'Invalid API key' errors.")
+                    logger.warning("Please add the Account ID to the cloudflare_accounts table or via Management Hub Settings.")
+                
+                cf_client = CloudflareClient(api_token, account_id)
                 
                 # Create zone and get assigned nameservers
                 zone_id, cloudflare_nameservers = cf_client.create_zone(domain)

@@ -18,15 +18,17 @@ class CloudflareError(Exception):
 class CloudflareClient:
     """Client for interacting with Cloudflare API"""
     
-    def __init__(self, api_token: str):
+    def __init__(self, api_token: str, account_id: str = None):
         """
         Initialize Cloudflare client
         
         Args:
             api_token: Cloudflare API token (scoped)
+            account_id: Cloudflare Account ID (required for zone creation)
         """
         self.cf = CloudFlare.CloudFlare(token=api_token)
-        logger.info("Cloudflare client initialized")
+        self.account_id = account_id
+        logger.info(f"Cloudflare client initialized with account ID: {account_id[:8] if account_id else 'None'}...")
     
     @retry(
         stop=stop_after_attempt(3),
@@ -45,11 +47,20 @@ class CloudflareClient:
         try:
             logger.info(f"Creating Cloudflare zone for {domain}")
             
-            # Create zone
+            # Create zone (following Cloudflare automation docs)
             zone_data = {
                 "name": domain,
                 "type": "full"
             }
+            
+            # Add account ID if provided (required for proper zone creation)
+            if self.account_id:
+                zone_data["account"] = {
+                    "id": self.account_id
+                }
+                logger.info(f"Including account ID in zone creation: {self.account_id[:8]}...")
+            else:
+                logger.warning("No account ID provided - zone creation may fail")
             
             result = self.cf.zones.post(data=zone_data)
             zone_id = result["id"]
@@ -67,8 +78,10 @@ class CloudflareClient:
                 zone_info = self.get_zone_info(zone_id)
                 return zone_id, zone_info.get("name_servers", [])
             
-            logger.error(f"Cloudflare API error creating zone for {domain}: {e}")
-            raise CloudflareError(f"Failed to create zone: {str(e)}")
+            logger.error(f"Cloudflare API error creating zone for {domain}: Code={e.code}, Error={e}")
+            if hasattr(e, 'errors'):
+                logger.error(f"Cloudflare error details: {e.errors}")
+            raise CloudflareError(f"Failed to create zone (code {e.code}): {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error creating zone for {domain}: {e}")
             raise CloudflareError(f"Failed to create zone: {str(e)}")

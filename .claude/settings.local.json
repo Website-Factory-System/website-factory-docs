@@ -12,7 +12,9 @@
       "Bash(npx:*)",
       "WebFetch(domain:www.cloudpanel.io)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(pip3 install:*)",
+      "WebFetch(domain:developers.cloudflare.com)"
     ],
     "deny": []
   }
