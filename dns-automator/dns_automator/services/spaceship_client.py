@@ -25,13 +25,19 @@ class SpaceshipClient:
             api_key: Spaceship API key
             api_secret: Spaceship API secret
         """
+        logger.info(f"🔧 Initializing Spaceship client...")
+        logger.info(f"   API Key: {api_key[:8]}...{api_key[-4:]} (length: {len(api_key)})")
+        logger.info(f"   API Secret: {api_secret[:8]}...{api_secret[-4:]} (length: {len(api_secret)})")
+        
         self.api_key = api_key
         self.api_secret = api_secret
         self.base_url = "https://api.spaceship.com/v2"
         self.session = requests.Session()
+        
+        logger.info(f"   🔐 Attempting authentication...")
         self._authenticate()
         
-        logger.info("Spaceship client initialized")
+        logger.info(f"✅ Spaceship client initialized successfully")
     
     def _authenticate(self):
         """Authenticate and get access token"""

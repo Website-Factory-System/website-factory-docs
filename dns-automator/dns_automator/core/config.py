@@ -13,7 +13,7 @@ load_dotenv()
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
-    # Supabase - optional for API mode
+    # Supabase database connection (using Railway shared variables)
     supabase_url: Optional[str] = Field(None, description="Supabase project URL")
     supabase_service_key: Optional[str] = Field(None, description="Supabase service role key")
     

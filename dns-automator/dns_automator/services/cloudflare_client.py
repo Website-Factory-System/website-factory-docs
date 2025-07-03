@@ -26,9 +26,27 @@ class CloudflareClient:
             api_token: Cloudflare API token (scoped)
             account_id: Cloudflare Account ID (required for zone creation)
         """
-        self.cf = CloudFlare.CloudFlare(token=api_token)
-        self.account_id = account_id
-        logger.info(f"Cloudflare client initialized with account ID: {account_id[:8] if account_id else 'None'}...")
+        logger.info(f"🔧 Initializing Cloudflare client...")
+        logger.info(f"   API Token: {api_token[:10]}...{api_token[-4:]} (length: {len(api_token)})")
+        logger.info(f"   Account ID: {account_id[:8] if account_id else 'None'}...{account_id[-4:] if account_id else ''}")
+        
+        try:
+            self.cf = CloudFlare.CloudFlare(token=api_token)
+            self.account_id = account_id
+            logger.info(f"✅ Cloudflare client initialized successfully")
+            
+            # Test the API token by making a simple API call
+            logger.info(f"🧪 Testing API token validity...")
+            try:
+                user_info = self.cf.user.get()
+                logger.info(f"✅ API token is valid - authenticated as: {user_info.get('email', 'unknown')}")
+            except Exception as test_e:
+                logger.error(f"❌ API token test failed: {test_e}")
+                logger.error(f"   This may indicate an invalid or expired API token")
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Cloudflare client: {e}")
+            raise CloudflareError(f"Failed to initialize Cloudflare client: {str(e)}")
     
     @retry(
         stop=stop_after_attempt(3),
@@ -45,7 +63,7 @@ class CloudflareClient:
             Tuple of (zone_id, nameservers)
         """
         try:
-            logger.info(f"Creating Cloudflare zone for {domain}")
+            logger.info(f"🌐 Creating Cloudflare zone for {domain}")
             
             # Create zone (following Cloudflare automation docs)
             zone_data = {
@@ -58,33 +76,62 @@ class CloudflareClient:
                 zone_data["account"] = {
                     "id": self.account_id
                 }
-                logger.info(f"Including account ID in zone creation: {self.account_id[:8]}...")
+                logger.info(f"   Including account ID in zone creation: {self.account_id[:8]}...{self.account_id[-4:]}")
             else:
-                logger.warning("No account ID provided - zone creation may fail")
+                logger.warning("   ⚠️  No account ID provided - zone creation may fail")
+            
+            logger.info(f"   📤 Sending POST request to Cloudflare API...")
+            logger.info(f"   Request data: {zone_data}")
             
             result = self.cf.zones.post(data=zone_data)
+            
+            logger.info(f"   📥 Cloudflare API response received")
+            logger.info(f"   Response keys: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
+            
             zone_id = result["id"]
             nameservers = result.get("name_servers", [])
             
-            logger.info(f"Successfully created zone for {domain} with ID: {zone_id}")
-            logger.info(f"Assigned nameservers: {', '.join(nameservers)}")
+            logger.info(f"✅ Successfully created zone for {domain}")
+            logger.info(f"   Zone ID: {zone_id}")
+            logger.info(f"   Assigned nameservers: {', '.join(nameservers)}")
             return zone_id, nameservers
             
         except CloudFlareAPIError as e:
+            logger.error(f"❌ Cloudflare API Error occurred:")
+            logger.error(f"   Error Code: {e.code}")
+            logger.error(f"   Error Message: {str(e)}")
+            logger.error(f"   Error Type: {type(e).__name__}")
+            
+            if hasattr(e, 'errors') and e.errors:
+                logger.error(f"   Detailed Errors:")
+                for i, error in enumerate(e.errors, 1):
+                    logger.error(f"     {i}. {error}")
+            
             # Check if zone already exists
             if e.code == 1061:  # Zone already exists
-                logger.info(f"Zone already exists for {domain}, fetching existing zone")
+                logger.info(f"   Zone already exists for {domain}, fetching existing zone")
                 zone_id = self.get_zone_id(domain)
                 zone_info = self.get_zone_info(zone_id)
                 return zone_id, zone_info.get("name_servers", [])
             
-            logger.error(f"Cloudflare API error creating zone for {domain}: Code={e.code}, Error={e}")
-            if hasattr(e, 'errors'):
-                logger.error(f"Cloudflare error details: {e.errors}")
-            raise CloudflareError(f"Failed to create zone (code {e.code}): {str(e)}")
+            # Common error codes to help with debugging
+            if e.code == 6003:
+                logger.error(f"   🔑 ERROR 6003: Invalid or expired API token")
+                logger.error(f"   Check that your Cloudflare API token is valid and has the correct permissions")
+            elif e.code == 1000:
+                logger.error(f"   🔐 ERROR 1000: Insufficient permissions")
+                logger.error(f"   Check that your API token has Zone:Edit permissions")
+            elif e.code == 1001:
+                logger.error(f"   💳 ERROR 1001: Account limit exceeded or billing issue")
+            
+            raise CloudflareError(f"Cloudflare API error (code {e.code}): {str(e)}")
         except Exception as e:
-            logger.error(f"Unexpected error creating zone for {domain}: {e}")
-            raise CloudflareError(f"Failed to create zone: {str(e)}")
+            logger.error(f"❌ Unexpected error creating zone for {domain}:")
+            logger.error(f"   Error: {str(e)}")
+            logger.error(f"   Error Type: {type(e).__name__}")
+            import traceback
+            logger.error(f"   Traceback: {traceback.format_exc()}")
+            raise CloudflareError(f"Unexpected error creating zone: {str(e)}")
     
     def get_zone_id(self, domain: str) -> str:
         """

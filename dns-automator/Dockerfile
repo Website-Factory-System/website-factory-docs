@@ -9,14 +9,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Set dummy environment variables for API mode
-ENV SUPABASE_URL=https://placeholder.supabase.co
-ENV SUPABASE_SERVICE_KEY=placeholder-key
-ENV API_MODE=true
+# Environment variables will be provided by Railway shared variables
 
-# Expose port
-EXPOSE 8000
+# Expose port 8080 to match Management Hub API expectations
+EXPOSE 8080
 
 # Run the FastAPI app
 # Use :: for IPv6 dual-stack binding as required by Railway
-CMD ["uvicorn", "app:app", "--host", "::", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--host", "::", "--port", "8080"]

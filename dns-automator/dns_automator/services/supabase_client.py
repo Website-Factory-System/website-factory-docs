@@ -16,14 +16,44 @@ class SupabaseService:
     
     def __init__(self):
         """Initialize Supabase client"""
+        print("🟢 DEBUG: SupabaseService.__init__() called")
+        
+        print(f"🟢 DEBUG: Checking Supabase credentials...")
+        print(f"🟢 DEBUG: supabase_url configured: {bool(settings.supabase_url)}")
+        print(f"🟢 DEBUG: supabase_service_key configured: {bool(settings.supabase_service_key)}")
+        
+        if settings.supabase_url:
+            print(f"🟢 DEBUG: supabase_url starts with: {settings.supabase_url[:30]}...")
+        if settings.supabase_service_key:
+            print(f"🟢 DEBUG: supabase_service_key starts with: {settings.supabase_service_key[:20]}...")
+        
         if not settings.supabase_url or not settings.supabase_service_key:
-            raise ValueError("Supabase credentials not configured")
-            
-        self.client: Client = create_client(
-            settings.supabase_url,
-            settings.supabase_service_key
-        )
-        logger.info("Supabase client initialized")
+            error_msg = "Supabase credentials not configured"
+            print(f"🔴 DEBUG: {error_msg}")
+            raise ValueError(error_msg)
+        
+        print("🟢 DEBUG: Creating Supabase client...")
+        try:
+            # Create client with explicit parameters only
+            self.client: Client = create_client(
+                supabase_url=settings.supabase_url,
+                supabase_key=settings.supabase_service_key
+            )
+            print("🟢 DEBUG: Supabase client created successfully")
+            logger.info("Supabase client initialized")
+        except Exception as e:
+            print(f"🔴 DEBUG: Failed to create Supabase client: {e}")
+            print(f"🔴 DEBUG: Exception type: {type(e).__name__}")
+            print(f"🔴 DEBUG: Supabase URL: {settings.supabase_url}")
+            print(f"🔴 DEBUG: Service key length: {len(settings.supabase_service_key) if settings.supabase_service_key else 0}")
+            raise
+    
+    def get_site(self, site_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get single site details (alias for compatibility)
+        """
+        sites = self.fetch_pending_dns_sites(site_id)
+        return sites[0] if sites else None
     
     def fetch_pending_dns_sites(self, site_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -52,6 +82,12 @@ class SupabaseService:
         except Exception as e:
             logger.error(f"Error fetching pending sites: {e}")
             return []
+    
+    def get_cloudflare_account(self, account_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get Cloudflare account details (alias for compatibility)
+        """
+        return self.fetch_cloudflare_account(account_id)
     
     def fetch_cloudflare_account(self, account_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -84,7 +120,7 @@ class SupabaseService:
             logger.error(f"Error fetching all Cloudflare accounts: {e}")
             return []
     
-    def fetch_domain_registrar_credentials(self, registrar_type: str = "namecheap") -> Optional[Dict[str, Any]]:
+    def get_registrar_credentials(self, registrar_type: str = "namecheap") -> Optional[Dict[str, Any]]:
         """
         Fetch domain registrar credentials from the database
         

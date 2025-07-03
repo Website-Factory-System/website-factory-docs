@@ -1,19 +1,39 @@
 """Main entry point for DNS Automator"""
 
+print("🟢 DEBUG: dns_automator/main.py module loading...")
+
 import sys
 import logging
 from typing import Optional
 from datetime import datetime
 
+print("🟢 DEBUG: Basic imports done, loading local modules...")
+
 from .core.config import settings
+print("🟢 DEBUG: config imported")
+
 from .core.logging import setup_logging
+print("🟢 DEBUG: logging imported")
+
 from .services.supabase_client import SupabaseService
+print("🟢 DEBUG: supabase_client imported")
+
+# Hub API client removed - using shared Railway variables instead
+
 from .services.namecheap_client import NamecheapClient, NamecheapError
+print("🟢 DEBUG: namecheap_client imported")
+
 from .services.spaceship_client import SpaceshipClient, SpaceshipError
+print("🟢 DEBUG: spaceship_client imported")
+
 from .services.cloudflare_client import CloudflareClient, CloudflareError
+print("🟢 DEBUG: cloudflare_client imported")
 
 # Setup logging
+print("🟢 DEBUG: Setting up logging...")
 logger = setup_logging()
+print("🟢 DEBUG: Logger setup complete")
+print("🟢 DEBUG: dns_automator/main.py module loaded successfully")
 
 
 class DNSAutomator:
@@ -21,16 +41,22 @@ class DNSAutomator:
     
     def __init__(self):
         """Initialize DNS Automator"""
-        # Check if we have required settings
+        print("🟢 DEBUG: DNSAutomator.__init__() called")
+        logger.info("🟢 DEBUG: DNSAutomator.__init__() called")
+        
+        # Initialize Supabase client using Railway shared variables
+        print("🟢 DEBUG: Initializing Supabase client with shared Railway variables...")
+        
         if not settings.supabase_url or not settings.supabase_service_key:
             raise ValueError(
                 "Supabase credentials not configured. "
-                "Either set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables "
-                "or use the API service mode."
+                "Please ensure SUPABASE_URL and SUPABASE_SERVICE_KEY are set as Railway shared variables."
             )
         
-        self.supabase = SupabaseService()
+        self.data_client = SupabaseService()
+        
         self.registrar_clients = {}
+        print("🟢 DEBUG: DNSAutomator initialization complete")
         logger.info("DNS Automator initialized")
     
     def get_registrar_client(self, registrar_type: str):
@@ -43,14 +69,19 @@ class DNSAutomator:
         Returns:
             Registrar client instance
         """
+        print(f"🟢 DEBUG: get_registrar_client() called with registrar_type='{registrar_type}'")
+        logger.info(f"🟢 DEBUG: get_registrar_client() called with registrar_type='{registrar_type}'")
+        
         if registrar_type in self.registrar_clients:
+            print(f"🟢 DEBUG: Using cached {registrar_type} client")
             logger.debug(f"Using cached {registrar_type} client")
             return self.registrar_clients[registrar_type]
         
+        print(f"🟢 DEBUG: Fetching {registrar_type} credentials from database...")
         logger.info(f"🔑 Fetching {registrar_type} credentials from database...")
         
         # Fetch credentials from database
-        creds = self.supabase.fetch_domain_registrar_credentials(registrar_type)
+        creds = self.data_client.get_registrar_credentials(registrar_type)
         
         if not creds:
             error_msg = f"No credentials found for {registrar_type} in database"
@@ -154,9 +185,14 @@ class DNSAutomator:
         Returns:
             Success boolean
         """
+        print("🟢 DEBUG: process_site() called")
+        print(f"🟢 DEBUG: process_site() called with site: {site}")
+        
         domain = site["domain"]
         site_id = site["id"]
         
+        print(f"🟢 DEBUG: Processing domain: {domain}, site_id: {site_id}")
+        logger.info(f"🟢 DEBUG: process_site() called for domain: {domain}")
         logger.info(f"🚀 ===== STARTING DNS PROCESSING FOR {domain} =====")
         logger.info(f"Site ID: {site_id}")
         logger.info(f"Site data: {site}")
@@ -167,12 +203,11 @@ class DNSAutomator:
             logger.info(f"📋 STEP 1: Fetching Cloudflare account credentials")
             logger.info(f"CF Account ID from site: {cf_account_id}")
             
-            cf_account = self.supabase.fetch_cloudflare_account(cf_account_id)
+            cf_account = self.data_client.get_cloudflare_account(cf_account_id)
             if not cf_account:
                 error_msg = f"❌ STEP 1 FAILED: Cloudflare account not found: {cf_account_id}"
                 logger.error(error_msg)
-                logger.error(f"Available CF accounts in database: {self.supabase.fetch_all_cloudflare_accounts()}")
-                self.supabase.update_site_status(site_id, "failed", error_msg)
+                self.data_client.update_site_status(site_id, "failed", error_msg)
                 return False
             
             logger.info(f"✅ STEP 1 SUCCESS: Found Cloudflare account")
@@ -195,7 +230,7 @@ class DNSAutomator:
                     error_msg = "❌ STEP 2 FAILED: Cloudflare Account ID not set in database!"
                     logger.error(error_msg)
                     logger.error("This will cause 'Invalid API key' errors. Please add Account ID via Management Hub Settings.")
-                    self.supabase.update_site_status(site_id, "failed", error_msg)
+                    self.data_client.update_site_status(site_id, "failed", error_msg)
                     return False
                 
                 logger.info(f"   Initializing Cloudflare client...")
@@ -208,7 +243,7 @@ class DNSAutomator:
                 if not cloudflare_nameservers:
                     error_msg = "❌ STEP 2 FAILED: No nameservers returned by Cloudflare"
                     logger.error(error_msg)
-                    self.supabase.update_site_status(site_id, "failed", error_msg)
+                    self.data_client.update_site_status(site_id, "failed", error_msg)
                     return False
                 
                 logger.info(f"   ✅ Zone created! ID: {zone_id}")
@@ -216,7 +251,7 @@ class DNSAutomator:
                 
                 # Get hosting server IP from database
                 logger.info(f"   Fetching default server configuration...")
-                server = self.supabase.fetch_default_server()
+                server = self.data_client.fetch_default_server()
                 if server:
                     server_ip = server["ip_address"]
                     logger.info(f"   Server IP: {server_ip}")
@@ -224,7 +259,7 @@ class DNSAutomator:
                     error_msg = "❌ STEP 2 FAILED: No default server configured in database"
                     logger.error(error_msg)
                     logger.error("Please configure via Management Hub Settings.")
-                    self.supabase.update_site_status(site_id, "failed", error_msg)
+                    self.data_client.update_site_status(site_id, "failed", error_msg)
                     return False
                 
                 # Create DNS records
@@ -254,8 +289,14 @@ class DNSAutomator:
                 
             except CloudflareError as e:
                 error_msg = f"Cloudflare error: {str(e)}"
-                logger.error(error_msg)
-                self.supabase.update_site_status(site_id, "failed", error_msg)
+                logger.error(f"❌ STEP 2 FAILED - Cloudflare Error:")
+                logger.error(f"   Error Message: {error_msg}")
+                logger.error(f"   This usually indicates:")
+                logger.error(f"   - Invalid or expired Cloudflare API token")
+                logger.error(f"   - Missing Cloudflare Account ID")
+                logger.error(f"   - Insufficient API token permissions")
+                logger.error(f"   - Rate limiting or billing issues")
+                self.data_client.update_site_status(site_id, "failed", error_msg)
                 return False
             
             # Step 3: Update nameservers at registrar with Cloudflare's nameservers
@@ -293,7 +334,19 @@ class DNSAutomator:
                 except (NamecheapError, SpaceshipError) as e:
                     # API error, save it and try next registrar
                     registrar_error = str(e)
-                    logger.error(f"   ❌ {registrar_type.title()} API error: {e}")
+                    logger.error(f"   ❌ {registrar_type.title()} API error:")
+                    logger.error(f"     Error: {str(e)}")
+                    logger.error(f"     Error Type: {type(e).__name__}")
+                    logger.error(f"   Common causes for {registrar_type} errors:")
+                    if registrar_type == "namecheap":
+                        logger.error(f"     - Invalid API key or username")
+                        logger.error(f"     - Client IP not whitelisted in Namecheap")
+                        logger.error(f"     - Domain not managed by this Namecheap account")
+                        logger.error(f"     - API rate limiting")
+                    elif registrar_type == "spaceship":
+                        logger.error(f"     - Invalid API key or secret")
+                        logger.error(f"     - Domain not managed by this Spaceship account")
+                        logger.error(f"     - API authentication issues")
                     logger.info(f"   Trying next registrar...")
                     continue
                     
@@ -310,14 +363,14 @@ class DNSAutomator:
                 logger.error(f"   Final error: {error_msg}")
                 logger.error(f"   Available registrar types tried: namecheap, spaceship")
                 logger.error(f"   Please check registrar credentials in Management Hub Settings")
-                self.supabase.update_site_status(site_id, "failed", f"Registrar error: {error_msg}")
+                self.data_client.update_site_status(site_id, "failed", f"Registrar error: {error_msg}")
                 return False
             
             # Step 4: Mark DNS configuration as complete
             logger.info(f"📋 STEP 4: Finalizing DNS configuration")
             logger.info(f"   Updating database status to 'active'...")
             
-            self.supabase.update_site_status(site_id, "active")
+            self.data_client.update_site_status(site_id, "active")
             
             logger.info(f"✅ STEP 4 SUCCESS: Database updated")
             logger.info(f"")
@@ -344,17 +397,22 @@ class DNSAutomator:
             logger.error(f"")
             
             logger.info(f"📋 Updating database status to 'failed'...")
-            self.supabase.update_site_status(site_id, "failed", error_msg)
+            self.data_client.update_site_status(site_id, "failed", error_msg)
             logger.info(f"✅ Database updated with error status")
             logger.error(f"")
             return False
     
     def run(self):
         """Main execution method"""
+        print("🟢 DEBUG: run() method called")
+        logger.info("🟢 DEBUG: run() method called")
+        
         logger.info("=" * 80)
         logger.info("🚀 DNS AUTOMATOR STARTING UP")
         logger.info("=" * 80)
         logger.info(f"⏰ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        print("🟢 DEBUG: About to fetch pending DNS sites...")
         
         try:
             # Fetch pending sites
@@ -365,7 +423,14 @@ class DNSAutomator:
             else:
                 logger.info(f"🔍 Processing all sites with status_dns = 'pending'")
                 
-            sites = self.supabase.fetch_pending_dns_sites(settings.site_id)
+            # Get site from data client (Hub API or Supabase)
+            if settings.site_id:
+                site = self.data_client.get_site(settings.site_id)
+                sites = [site] if site else []
+            else:
+                # For Hub API mode, we'll implement batch processing later
+                # For now, we expect a specific site_id
+                sites = []
             
             if not sites:
                 logger.info("✅ No pending DNS sites found to process")
@@ -431,8 +496,15 @@ class DNSAutomator:
 
 def main():
     """Main entry point"""
+    print("🟢 DEBUG: main() function called")
+    print("🟢 DEBUG: About to create DNSAutomator instance...")
+    
     automator = DNSAutomator()
+    
+    print("🟢 DEBUG: DNSAutomator created, about to call run()...")
     automator.run()
+    
+    print("🟢 DEBUG: main() function completed")
 
 
 if __name__ == "__main__":
