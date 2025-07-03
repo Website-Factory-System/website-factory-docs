@@ -90,6 +90,62 @@ def run_dns_automation(supabase_url: str, supabase_service_key: str, site_id: Op
         logger.error(f"DNS automation failed: {e}")
 
 
+def run_dns_automation_sync(supabase_url: str, supabase_service_key: str, site_id: Optional[str] = None) -> bool:
+    """Synchronous DNS automation that returns the actual result"""
+    try:
+        # Temporarily set environment variables for this execution
+        original_url = os.environ.get("SUPABASE_URL")
+        original_key = os.environ.get("SUPABASE_SERVICE_KEY")
+        original_site_id = os.environ.get("SITE_ID")
+        
+        os.environ["SUPABASE_URL"] = supabase_url
+        os.environ["SUPABASE_SERVICE_KEY"] = supabase_service_key
+        
+        if site_id:
+            os.environ["SITE_ID"] = site_id
+        
+        try:
+            # Run the automator and get result
+            automator = DNSAutomator()
+            
+            # Get the pending sites
+            sites = automator.supabase.fetch_pending_dns_sites(site_id)
+            
+            if not sites:
+                logger.info("No pending DNS sites found")
+                return True  # No work to do counts as success
+                
+            # Process each site and track results
+            success_count = 0
+            for site in sites:
+                if automator.process_site(site):
+                    success_count += 1
+                    
+            # Return True only if all sites succeeded
+            return success_count == len(sites)
+            
+        finally:
+            # Restore original environment
+            if original_url:
+                os.environ["SUPABASE_URL"] = original_url
+            else:
+                os.environ.pop("SUPABASE_URL", None)
+                
+            if original_key:
+                os.environ["SUPABASE_SERVICE_KEY"] = original_key
+            else:
+                os.environ.pop("SUPABASE_SERVICE_KEY", None)
+                
+            if original_site_id:
+                os.environ["SITE_ID"] = original_site_id
+            else:
+                os.environ.pop("SITE_ID", None)
+            
+    except Exception as e:
+        logger.error(f"DNS automation failed: {e}")
+        return False
+
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -104,22 +160,28 @@ async def process_dns(request: ProcessRequest, background_tasks: BackgroundTasks
     This endpoint is called by the Management Hub API with injected credentials
     """
     try:
-        # Add the DNS automation to background tasks
-        background_tasks.add_task(
-            run_dns_automation,
+        # Run DNS automation synchronously to get the actual result
+        result = run_dns_automation_sync(
             request.supabase_url,
             request.supabase_service_key,
             request.site_id
         )
         
-        return ProcessResponse(
-            status="accepted",
-            message="DNS automation task started",
-            task_id=request.site_id
-        )
+        if result:
+            return ProcessResponse(
+                status="completed",
+                message="DNS automation completed successfully",
+                task_id=request.site_id
+            )
+        else:
+            return ProcessResponse(
+                status="failed", 
+                message="DNS automation failed - check logs for details",
+                task_id=request.site_id
+            )
         
     except Exception as e:
-        logger.error(f"Failed to start DNS automation: {e}")
+        logger.error(f"Failed to run DNS automation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
