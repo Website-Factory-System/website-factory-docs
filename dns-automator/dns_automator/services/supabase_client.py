@@ -70,6 +70,20 @@ class SupabaseService:
             logger.error(f"Error fetching Cloudflare account {account_id}: {e}")
             return None
     
+    def fetch_all_cloudflare_accounts(self) -> list:
+        """
+        Fetch all Cloudflare accounts for debugging
+        
+        Returns:
+            List of account records
+        """
+        try:
+            response = self.client.table("cloudflare_accounts").select("id, email, account_nickname").execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Error fetching all Cloudflare accounts: {e}")
+            return []
+    
     def fetch_domain_registrar_credentials(self, registrar_type: str = "namecheap") -> Optional[Dict[str, Any]]:
         """
         Fetch domain registrar credentials from the database

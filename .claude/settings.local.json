@@ -14,7 +14,8 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(pip3 install:*)",
-      "WebFetch(domain:developers.cloudflare.com)"
+      "WebFetch(domain:developers.cloudflare.com)",
+      "WebFetch(domain:www.namecheap.com)"
     ],
     "deny": []
   }
