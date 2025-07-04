@@ -2,7 +2,6 @@
 
 import logging
 from typing import Dict, List, Optional, Any
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 import CloudFlare
 from CloudFlare.exceptions import CloudFlareAPIError
@@ -40,6 +39,14 @@ class CloudflareClient:
             try:
                 user_info = self.cf.user.get()
                 logger.info(f"✅ API token is valid - authenticated as: {user_info.get('email', 'unknown')}")
+            except CloudFlareAPIError as test_e:
+                logger.error(f"❌ API token test failed: {test_e}")
+                if "authentication" in str(test_e).lower():
+                    logger.error(f"   🔑 SOLUTION: This token appears to be invalid or expired")
+                    logger.error(f"   Please check that your Cloudflare API token is correctly set and not expired")
+                    logger.error(f"   Required permissions: Zone:Edit, Zone:Read, Account:Read")
+                else:
+                    logger.error(f"   This may indicate an invalid or expired API token")
             except Exception as test_e:
                 logger.error(f"❌ API token test failed: {test_e}")
                 logger.error(f"   This may indicate an invalid or expired API token")
@@ -48,10 +55,6 @@ class CloudflareClient:
             logger.error(f"❌ Failed to initialize Cloudflare client: {e}")
             raise CloudflareError(f"Failed to initialize Cloudflare client: {str(e)}")
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def create_zone(self, domain: str) -> tuple[str, list[str]]:
         """
         Create a new DNS zone
@@ -118,11 +121,18 @@ class CloudflareClient:
             if e.code == 6003:
                 logger.error(f"   🔑 ERROR 6003: Invalid or expired API token")
                 logger.error(f"   Check that your Cloudflare API token is valid and has the correct permissions")
+                logger.error(f"   Required permissions: Zone:Edit, Zone:Read, Account:Read")
             elif e.code == 1000:
                 logger.error(f"   🔐 ERROR 1000: Insufficient permissions")
                 logger.error(f"   Check that your API token has Zone:Edit permissions")
+                logger.error(f"   Go to Cloudflare Dashboard > My Profile > API Tokens")
+                logger.error(f"   Edit your token and ensure it has 'Zone:Edit' permission")
             elif e.code == 1001:
                 logger.error(f"   💳 ERROR 1001: Account limit exceeded or billing issue")
+            elif "authentication" in str(e).lower():
+                logger.error(f"   🔑 AUTHENTICATION ERROR: Token may be missing required permissions")
+                logger.error(f"   Go to Cloudflare Dashboard > My Profile > API Tokens")
+                logger.error(f"   Create/edit token with these permissions: Zone:Edit, Zone:Read, Account:Read")
             
             raise CloudflareError(f"Cloudflare API error (code {e.code}): {str(e)}")
         except Exception as e:
@@ -172,10 +182,6 @@ class CloudflareClient:
             logger.error(f"Error fetching zone info: {e}")
             raise CloudflareError(f"Failed to get zone info: {str(e)}")
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def create_dns_record(
         self, 
         zone_id: str, 
