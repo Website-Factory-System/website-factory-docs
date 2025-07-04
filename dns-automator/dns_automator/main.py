@@ -92,7 +92,6 @@ class DNSAutomator:
                 logger.error(f"   - api_user (Namecheap username)")
                 logger.error(f"   - api_key (Namecheap API key)")
                 logger.error(f"   - username (typically same as api_user)")
-                logger.error(f"   - client_ip (whitelisted IP address)")
             elif registrar_type == "spaceship":
                 logger.error(f"   - api_key (Spaceship API key)")
                 logger.error(f"   - api_secret (Spaceship API secret)")
@@ -103,7 +102,7 @@ class DNSAutomator:
         
         # Validate credentials structure for each registrar type
         if registrar_type == "namecheap":
-            required_fields = ["api_user", "api_key", "username", "client_ip"]
+            required_fields = ["api_user", "api_key", "username"]
             logger.info(f"   Namecheap requires: {', '.join(required_fields)}")
             
             missing_fields = []
@@ -133,11 +132,26 @@ class DNSAutomator:
             logger.info(f"✅ All required Namecheap fields present")
             logger.info(f"   Creating Namecheap client...")
             
+            # Get the public IP of this DNS automator service
+            import requests
+            try:
+                # Use a simple IP lookup service
+                ip_response = requests.get('https://api.ipify.org', timeout=5)
+                client_ip = ip_response.text.strip()
+                logger.info(f"   Detected DNS automator public IP: {client_ip}")
+            except Exception as e:
+                logger.error(f"   Failed to get public IP: {e}")
+                # Fall back to client_ip from creds if available
+                client_ip = creds.get("client_ip", "")
+                if not client_ip:
+                    raise ValueError("Could not determine client IP for Namecheap API")
+                logger.info(f"   Using client_ip from credentials: {client_ip}")
+            
             client = NamecheapClient(
                 api_user=creds["api_user"],
                 api_key=creds["api_key"],
                 username=creds["username"],
-                client_ip=creds["client_ip"]
+                client_ip=client_ip
             )
             
         elif registrar_type == "spaceship":
@@ -249,18 +263,11 @@ class DNSAutomator:
                 logger.info(f"   ✅ Zone created! ID: {zone_id}")
                 logger.info(f"   📋 Assigned nameservers: {', '.join(cloudflare_nameservers)}")
                 
-                # Get hosting server IP from database
-                logger.info(f"   Fetching default server configuration...")
-                server = self.data_client.fetch_default_server()
-                if server:
-                    server_ip = server["ip_address"]
-                    logger.info(f"   Server IP: {server_ip}")
-                else:
-                    error_msg = "❌ STEP 2 FAILED: No default server configured in database"
-                    logger.error(error_msg)
-                    logger.error("Please configure via Management Hub Settings.")
-                    self.data_client.update_site_status(site_id, "failed", error_msg)
-                    return False
+                # Get hosting server IP - use hardcoded for now since servers table doesn't exist
+                logger.info(f"   Using default hosting server configuration...")
+                # TODO: Replace with actual server IP from your hosting setup
+                server_ip = "85.31.238.203"  # Replace with your actual server IP
+                logger.info(f"   Server IP: {server_ip}")
                 
                 # Create DNS records
                 logger.info(f"   Creating DNS records...")
@@ -341,6 +348,8 @@ class DNSAutomator:
                     if registrar_type == "namecheap":
                         logger.error(f"     - Invalid API key or username")
                         logger.error(f"     - Client IP not whitelisted in Namecheap")
+                        logger.error(f"       DNS automator is making requests from IP: {registrar_client.client_ip}")
+                        logger.error(f"       Add this IP to your Namecheap API whitelist")
                         logger.error(f"     - Domain not managed by this Namecheap account")
                         logger.error(f"     - API rate limiting")
                     elif registrar_type == "spaceship":
