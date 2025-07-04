@@ -3,7 +3,6 @@
 import logging
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 import requests
 
@@ -134,10 +133,6 @@ class NamecheapClient:
             logger.error(f"     Traceback: {traceback.format_exc()}")
             raise NamecheapError(f"Unexpected error: {str(e)}")
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def set_nameservers(self, domain: str, nameservers: List[str]) -> bool:
         """
         Update domain nameservers
