@@ -189,6 +189,62 @@ class DNSAutomator:
         self.registrar_clients[registrar_type] = client
         return client
     
+    def _check_namecheap_domain(self, namecheap_client, domain: str) -> bool:
+        """
+        Check if domain is managed by the Namecheap account
+        
+        Args:
+            namecheap_client: Initialized Namecheap client
+            domain: Domain to check
+            
+        Returns:
+            True if domain belongs to this account
+        """
+        try:
+            logger.info(f"         📋 Fetching domain list from Namecheap...")
+            domain_info = namecheap_client.get_domain_info(domain)
+            
+            if domain_info:
+                logger.info(f"         ✅ Domain {domain} found in Namecheap account")
+                logger.info(f"            Status: {domain_info.get('status', 'unknown')}")
+                logger.info(f"            Expires: {domain_info.get('expires', 'unknown')}")
+                return True
+            else:
+                logger.info(f"         ❌ Domain {domain} not found in Namecheap account")
+                return False
+                
+        except Exception as e:
+            logger.error(f"         ❌ Error checking Namecheap domain: {e}")
+            return False
+    
+    def _check_spaceship_domain(self, spaceship_client, domain: str) -> bool:
+        """
+        Check if domain is managed by the Spaceship account
+        
+        Args:
+            spaceship_client: Initialized Spaceship client
+            domain: Domain to check
+            
+        Returns:
+            True if domain belongs to this account
+        """
+        try:
+            logger.info(f"         📋 Fetching domain info from Spaceship...")
+            domain_info = spaceship_client.get_domain_info(domain)
+            
+            if domain_info:
+                logger.info(f"         ✅ Domain {domain} found in Spaceship account")
+                logger.info(f"            Status: {domain_info.get('status', 'unknown')}")
+                logger.info(f"            Expires: {domain_info.get('expires_at', 'unknown')}")
+                return True
+            else:
+                logger.info(f"         ❌ Domain {domain} not found in Spaceship account")
+                return False
+                
+        except Exception as e:
+            logger.error(f"         ❌ Error checking Spaceship domain: {e}")
+            return False
+    
     def process_site(self, site: dict) -> bool:
         """
         Process DNS configuration for a single site
@@ -263,13 +319,20 @@ class DNSAutomator:
                 logger.info(f"   ✅ Zone created! ID: {zone_id}")
                 logger.info(f"   📋 Assigned nameservers: {', '.join(cloudflare_nameservers)}")
                 
-                # Get hosting server IP - use hardcoded for now since servers table doesn't exist
-                logger.info(f"   Using default hosting server configuration...")
-                # TODO: Replace with actual server IP from your hosting setup
-                server_ip = "85.31.238.203"  # Replace with your actual server IP
+                # Get hosting server IP from database
+                logger.info(f"   Fetching server configuration from database...")
+                server_config = self.data_client.get_default_server()
+                if not server_config:
+                    error_msg = "❌ STEP 2 FAILED: No default server configured in database"
+                    logger.error(error_msg)
+                    logger.error("   Please add a server via Management Hub Settings and mark it as default")
+                    self.data_client.update_site_status(site_id, "failed", error_msg)
+                    return False
+                
+                server_ip = server_config["ip_address"]
                 logger.info(f"   Server IP: {server_ip}")
                 
-                # Create DNS records
+                # Create DNS records - only A records for @ and www
                 logger.info(f"   Creating DNS records...")
                 
                 # A record for root domain
@@ -282,13 +345,13 @@ class DNSAutomator:
                     proxied=True
                 )
                 
-                # CNAME record for www
-                logger.info(f"   Creating CNAME record: www -> {domain}")
+                # A record for www subdomain  
+                logger.info(f"   Creating A record: www -> {server_ip}")
                 cf_client.create_dns_record(
                     zone_id=zone_id,
-                    record_type="CNAME",
+                    record_type="A",
                     name="www",
-                    content=domain,
+                    content=server_ip,
                     proxied=True
                 )
                 
@@ -307,71 +370,106 @@ class DNSAutomator:
                 return False
             
             # Step 3: Update nameservers at registrar with Cloudflare's nameservers
-            logger.info(f"📋 STEP 3: Updating nameservers at domain registrar")
+            logger.info(f"📋 STEP 3: Detecting domain registrar and updating nameservers")
+            logger.info(f"   Domain: {domain}")
             logger.info(f"   New nameservers to set: {', '.join(cloudflare_nameservers)}")
             
             registrar_updated = False
             registrar_error = None
+            detected_registrar = None
             
-            # Try each registrar in order until one succeeds
+            # Try to detect which registrar manages this domain
+            logger.info(f"   🔍 Detecting registrar for {domain}...")
+            
             for registrar_type in ["namecheap", "spaceship"]:
-                logger.info(f"   🔄 Trying {registrar_type.title()} registrar...")
+                logger.info(f"")
+                logger.info(f"   🔄 Testing {registrar_type.title()} registrar...")
                 try:
-                    logger.info(f"   Fetching {registrar_type} credentials from database...")
+                    # Get registrar client with credentials
+                    logger.info(f"      📋 Fetching {registrar_type} credentials from database...")
                     registrar_client = self.get_registrar_client(registrar_type)
-                    logger.info(f"   ✅ {registrar_type.title()} client initialized successfully")
+                    logger.info(f"      ✅ {registrar_type.title()} client initialized successfully")
                     
-                    logger.info(f"   📡 Calling {registrar_type} API to set nameservers for {domain}...")
-                    logger.info(f"      - Domain: {domain}")
-                    logger.info(f"      - Nameservers: {cloudflare_nameservers}")
+                    # Check if domain belongs to this registrar
+                    logger.info(f"      🔍 Checking if {domain} is managed by {registrar_type.title()}...")
                     
-                    registrar_client.set_nameservers(domain, cloudflare_nameservers)
+                    if registrar_type == "namecheap":
+                        domain_belongs = self._check_namecheap_domain(registrar_client, domain)
+                    elif registrar_type == "spaceship":
+                        domain_belongs = self._check_spaceship_domain(registrar_client, domain)
                     
-                    logger.info(f"✅ STEP 3 SUCCESS: Nameservers updated at {registrar_type.title()}")
-                    logger.info(f"   Domain {domain} now points to Cloudflare nameservers")
-                    registrar_updated = True
-                    break
+                    if domain_belongs:
+                        logger.info(f"      ✅ Domain {domain} IS managed by {registrar_type.title()}")
+                        detected_registrar = registrar_type
+                        
+                        # Update nameservers
+                        logger.info(f"      📡 Updating nameservers at {registrar_type.title()}...")
+                        logger.info(f"         Domain: {domain}")
+                        logger.info(f"         New nameservers: {cloudflare_nameservers}")
+                        
+                        success = registrar_client.set_nameservers(domain, cloudflare_nameservers)
+                        
+                        if success:
+                            logger.info(f"      ✅ Nameservers updated successfully at {registrar_type.title()}")
+                            registrar_updated = True
+                            break
+                        else:
+                            logger.error(f"      ❌ Failed to update nameservers at {registrar_type.title()}")
+                            registrar_error = f"Nameserver update failed at {registrar_type}"
+                    else:
+                        logger.info(f"      ❌ Domain {domain} is NOT managed by {registrar_type.title()}")
+                        logger.info(f"      ➡️  Trying next registrar...")
+                        continue
                     
                 except ValueError as e:
-                    # No credentials for this registrar, try next
-                    logger.warning(f"   ⚠️  No credentials configured for {registrar_type}: {e}")
-                    logger.info(f"   Skipping {registrar_type}, trying next registrar...")
+                    # No credentials for this registrar, skip
+                    logger.warning(f"      ⚠️  No credentials configured for {registrar_type}: {e}")
+                    logger.info(f"      ➡️  Skipping {registrar_type}, trying next registrar...")
                     continue
                     
                 except (NamecheapError, SpaceshipError) as e:
-                    # API error, save it and try next registrar
+                    # API error with this registrar
                     registrar_error = str(e)
-                    logger.error(f"   ❌ {registrar_type.title()} API error:")
-                    logger.error(f"     Error: {str(e)}")
-                    logger.error(f"     Error Type: {type(e).__name__}")
-                    logger.error(f"   Common causes for {registrar_type} errors:")
+                    logger.error(f"      ❌ {registrar_type.title()} API error:")
+                    logger.error(f"         Error: {str(e)}")
+                    logger.error(f"         Error Type: {type(e).__name__}")
+                    logger.error(f"      💡 Common causes for {registrar_type} errors:")
                     if registrar_type == "namecheap":
-                        logger.error(f"     - Invalid API key or username")
-                        logger.error(f"     - Client IP not whitelisted in Namecheap")
-                        logger.error(f"       DNS automator is making requests from IP: {registrar_client.client_ip}")
-                        logger.error(f"       Add this IP to your Namecheap API whitelist")
-                        logger.error(f"     - Domain not managed by this Namecheap account")
-                        logger.error(f"     - API rate limiting")
+                        logger.error(f"         - Invalid API key or username")
+                        logger.error(f"         - Client IP not whitelisted in Namecheap")
+                        logger.error(f"           DNS automator IP: {getattr(registrar_client, 'client_ip', 'unknown')}")
+                        logger.error(f"           Add this IP to Namecheap API whitelist")
+                        logger.error(f"         - Domain not in this Namecheap account")
+                        logger.error(f"         - API rate limiting")
                     elif registrar_type == "spaceship":
-                        logger.error(f"     - Invalid API key or secret")
-                        logger.error(f"     - Domain not managed by this Spaceship account")
-                        logger.error(f"     - API authentication issues")
-                    logger.info(f"   Trying next registrar...")
+                        logger.error(f"         - Invalid API key or secret")
+                        logger.error(f"         - Domain not in this Spaceship account")
+                        logger.error(f"         - API authentication issues")
+                    logger.info(f"      ➡️  Trying next registrar...")
                     continue
                     
                 except Exception as e:
                     # Unexpected error
                     registrar_error = str(e)
-                    logger.error(f"   ❌ Unexpected error with {registrar_type}: {e}")
-                    logger.info(f"   Trying next registrar...")
+                    logger.error(f"      ❌ Unexpected error with {registrar_type}: {e}")
+                    logger.info(f"      ➡️  Trying next registrar...")
                     continue
             
-            if not registrar_updated:
-                error_msg = registrar_error or "No registrar credentials configured"
-                logger.error(f"❌ STEP 3 FAILED: Could not update nameservers at any registrar")
-                logger.error(f"   Final error: {error_msg}")
-                logger.error(f"   Available registrar types tried: namecheap, spaceship")
-                logger.error(f"   Please check registrar credentials in Management Hub Settings")
+            logger.info(f"")
+            if registrar_updated:
+                logger.info(f"✅ STEP 3 SUCCESS: Nameservers updated successfully")
+                logger.info(f"   🎯 Detected registrar: {detected_registrar.title()}")
+                logger.info(f"   📋 Domain {domain} now points to Cloudflare nameservers")
+                logger.info(f"   📡 DNS propagation will begin immediately")
+            else:
+                error_msg = registrar_error or "Domain not found in any configured registrar account"
+                logger.error(f"❌ STEP 3 FAILED: Could not update nameservers")
+                logger.error(f"   🔍 Registrars checked: namecheap, spaceship")
+                logger.error(f"   📋 Final error: {error_msg}")
+                logger.error(f"   💡 Possible solutions:")
+                logger.error(f"      - Verify domain is in one of your registrar accounts")
+                logger.error(f"      - Check registrar credentials in Management Hub Settings")
+                logger.error(f"      - Ensure API permissions are correct")
                 self.data_client.update_site_status(site_id, "failed", f"Registrar error: {error_msg}")
                 return False
             

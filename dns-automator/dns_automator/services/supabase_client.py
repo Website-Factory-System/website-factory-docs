@@ -137,6 +137,12 @@ class SupabaseService:
             logger.error(f"Error fetching {registrar_type} credentials: {e}")
             return None
     
+    def get_default_server(self) -> Optional[Dict[str, Any]]:
+        """
+        Get default server configuration (alias for compatibility)
+        """
+        return self.fetch_default_server()
+    
     def fetch_default_server(self) -> Optional[Dict[str, Any]]:
         """
         Fetch the default server configuration
@@ -165,8 +171,7 @@ class SupabaseService:
         """
         try:
             update_data = {
-                "status_dns": status,
-                "updated_at": datetime.utcnow().isoformat()
+                "status_dns": status
             }
             
             if error_message:

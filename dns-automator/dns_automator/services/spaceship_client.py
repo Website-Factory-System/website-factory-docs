@@ -2,7 +2,6 @@
 
 import logging
 from typing import List, Dict, Optional
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 import requests
 
@@ -113,10 +112,6 @@ class SpaceshipClient:
                 logger.error(f"Response body: {e.response.text}")
             raise SpaceshipError(f"Request failed: {str(e)}")
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def set_nameservers(self, domain: str, nameservers: List[str]) -> bool:
         """
         Update domain nameservers
